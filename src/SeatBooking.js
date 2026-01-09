@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './SeatBooking.css';
+
 
 const SEAT_STATUS = {
     AVAILABLE: 'available',
@@ -40,11 +41,40 @@ const SeatBooking = () => {
 
     // TODO: Implement all required functionality below
 
-    const getSeatPrice = (row) => { return 0; };
-    const getSelectedCount = () => { return 0; };
-    const getBookedCount = () => { return 0; };
-    const getAvailableCount = () => { return 0; };
-    const calculateTotalPrice = () => { return 0; };
+    useEffect(() => {
+    const saved = localStorage.getItem('bookedSeats');
+    if (saved) {
+        const bookedIds = JSON.parse(saved);
+        setSeats(prev =>
+            prev.map(row =>
+                row.map(seat =>
+                    bookedIds.includes(seat.id)
+                        ? { ...seat, status: SEAT_STATUS.BOOKED }
+                        : seat
+                )
+            )
+        );
+    }
+}, []);
+
+
+    const getSeatPrice = (row) => { 
+        if (row <= 2) return SEAT_PRICES.PREMIUM;
+        if (row <= 5) return SEAT_PRICES.STANDARD;
+        return SEAT_PRICES.ECONOMY;
+ };
+    const getSelectedCount = () => seats.flat().filter(s => s.status === SEAT_STATUS.SELECTED).length;
+     
+    const getBookedCount = () => seats.flat().filter(s => s.status === SEAT_STATUS.BOOKED).length; 
+    
+    const getAvailableCount = () => seats.flat().filter(s => s.status === SEAT_STATUS.AVAILABLE).length;
+
+    const calculateTotalPrice = () =>  seats.flat().reduce((sum, seat) => {
+        if (seat.status === SEAT_STATUS.SELECTED) {
+            return sum + getSeatPrice(seat.row);
+        }
+        return sum;
+    }, 0);
 
     const handleSeatClick = (row, seat) => {
         // TODO: Implement seat selection logic
