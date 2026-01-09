@@ -62,7 +62,7 @@ const SeatBooking = () => {
         if (row <= 2) return SEAT_PRICES.PREMIUM;
         if (row <= 5) return SEAT_PRICES.STANDARD;
         return SEAT_PRICES.ECONOMY;
- };
+     };
     const getSelectedCount = () => seats.flat().filter(s => s.status === SEAT_STATUS.SELECTED).length;
      
     const getBookedCount = () => seats.flat().filter(s => s.status === SEAT_STATUS.BOOKED).length; 
@@ -76,12 +76,105 @@ const SeatBooking = () => {
         return sum;
     }, 0);
 
+    const isContinuityValidForRow = (rowSeats, currentIndex) => {
+    // Get all selected seat indexes in this row
+    const selectedIndexes = rowSeats
+        .map((seat, index) =>
+            seat.status === SEAT_STATUS.SELECTED ? index : null
+        )
+        .filter(index => index !== null);
+
+    // a) If only one selected seat, continuity is always valid
+    if (selectedIndexes.length <= 1) return true;
+
+    // b) Check LEFT direction from currentIndex
+    for (let i = currentIndex - 1; i >= 0; i--) {
+        const status = rowSeats[i].status;
+
+        if (status === SEAT_STATUS.BOOKED) continue; // ignore booked
+        if (status === SEAT_STATUS.SELECTED) return true; // continuity satisfied
+        if (status === SEAT_STATUS.AVAILABLE) break; // blocked by available
+    }
+
+    // c) Check RIGHT direction from currentIndex
+    for (let i = currentIndex + 1; i < rowSeats.length; i++) {
+        const status = rowSeats[i].status;
+
+        if (status === SEAT_STATUS.BOOKED) continue; // ignore booked
+        if (status === SEAT_STATUS.SELECTED) return true; // continuity satisfied
+        if (status === SEAT_STATUS.AVAILABLE) break; // blocked by available
+    }
+
+    // d) No selected seat reachable without crossing AVAILABLE
+    return false;
+};
+
+
+
+
     const handleSeatClick = (row, seat) => {
         // TODO: Implement seat selection logic
+        setSeats(prev => {
+        const copy = prev.map(r => r.map(s => ({ ...s })));
+        const current = copy[row][seat];
+
+        if (current.status === SEAT_STATUS.BOOKED) return prev;
+
+        if (
+            current.status === SEAT_STATUS.AVAILABLE &&
+            getSelectedCount() >= MAX_SEATS_PER_BOOKING
+        ) {
+            alert('You can book a maximum of 8 seats.');
+            return prev;
+        }
+
+        current.status =
+            current.status === SEAT_STATUS.SELECTED
+                ? SEAT_STATUS.AVAILABLE
+                : SEAT_STATUS.SELECTED;
+
+        if (
+           current.status === SEAT_STATUS.SELECTED &&
+           !isContinuityValidForRow(copy[row], seat)
+            ) {
+            alert('Seat selection must be continuous.');
+            return prev;
+               }
+
+
+        return copy;
+    });
     };
 
     const handleBookSeats = () => {
         // TODO: Implement booking logic
+        const selectedSeats = seats.flat().filter(s => s.status === SEAT_STATUS.SELECTED);
+    const count = selectedSeats.length;
+    const total = calculateTotalPrice();
+
+    if (
+        !window.confirm(
+            `Confirm booking?\nSeats: ${count}\nTotal Price: ₹${total}`
+        )
+    ) return;
+
+    setSeats(prev => {
+        const updated = prev.map(row =>
+            row.map(seat =>
+                seat.status === SEAT_STATUS.SELECTED
+                    ? { ...seat, status: SEAT_STATUS.BOOKED }
+                    : seat
+            )
+        );
+
+        const bookedIds = updated
+            .flat()
+            .filter(s => s.status === SEAT_STATUS.BOOKED)
+            .map(s => s.id);
+
+        localStorage.setItem('bookedSeats', JSON.stringify(bookedIds));
+        return updated;
+    });
     };
 
     const handleClearSelection = () => {
